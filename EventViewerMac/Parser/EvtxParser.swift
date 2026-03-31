@@ -89,14 +89,17 @@ class EvtxParser {
             throw ParseError.invalidFile("Invalid signature")
         }
 
+        // File header layout: signature(8) + firstChunk(8) + lastChunk(8) +
+        // nextRecordId(8) + headerSize(4) + minorVer(2) + majorVer(2) +
+        // headerBlockSize(2) + chunkCount(2)
         return EvtxFileHeader(
             firstChunkNumber: data.readUInt64(at: 8),
             lastChunkNumber: data.readUInt64(at: 16),
             nextRecordId: data.readUInt64(at: 24),
-            minorVersion: data.readUInt16(at: 32),
-            majorVersion: data.readUInt16(at: 34),
-            headerBlockSize: data.readUInt16(at: 36),
-            chunkCount: data.readUInt16(at: 38)
+            minorVersion: data.readUInt16(at: 36),
+            majorVersion: data.readUInt16(at: 38),
+            headerBlockSize: data.readUInt16(at: 40),
+            chunkCount: data.readUInt16(at: 42)
         )
     }
 
@@ -112,7 +115,10 @@ class EvtxParser {
         let sig = [UInt8](chunkData.prefix(8))
         guard sig == EvtxChunkHeader.signature else { return nil }
 
-        let freeSpaceOffset = Int(chunkData.readUInt32(at: 40))
+        // Chunk header: sig(8) + firstRecNum(8) + lastRecNum(8) +
+        // firstRecId(8) + lastRecId(8) + headerSize(4) + lastRecDataOff(4) +
+        // freeSpaceOff(4)
+        let freeSpaceOffset = Int(chunkData.readUInt32(at: 48))
         let parser = BinXmlParser(chunkData: chunkData)
 
         var events: [EvtxEvent] = []
@@ -140,7 +146,7 @@ class EvtxParser {
             let binXmlEnd = recordOffset + recordSize - 4 // last 4 bytes = copy of size
             if binXmlStart < binXmlEnd {
                 let binXmlData = chunkData.safeSubdata(in: binXmlStart..<binXmlEnd)
-                let xml = parser.parse(binXmlData: binXmlData)
+                let xml = parser.parse(binXmlData: binXmlData, chunkOffset: binXmlStart)
 
                 if !xml.isEmpty {
                     let event = EvtxEvent.fromXml(xml, recordId: recordId, timestamp: timestamp)
