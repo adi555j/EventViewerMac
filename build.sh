@@ -16,6 +16,8 @@ xcodebuild -project EventViewerMac.xcodeproj \
     -scheme EventViewerMac \
     -configuration Release \
     -derivedDataPath ./build \
+    ARCHS="x86_64 arm64" \
+    ONLY_ACTIVE_ARCH=NO \
     clean build
 
 # Verify architectures
